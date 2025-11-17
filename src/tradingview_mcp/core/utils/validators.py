@@ -11,10 +11,21 @@ EXCHANGE_SCREENER = {
     "gateio": "crypto",
     "binance": "crypto",
     "bitfinex": "crypto",
+    "bitget": "crypto",
     "bybit": "crypto",
     "okx": "crypto",
     "bist": "turkey",
     "nasdaq": "america",
+    # Malaysia Stock Market Support
+    "bursa": "malaysia",
+    "myx": "malaysia",
+    "klse": "malaysia",
+    "ace": "malaysia",      # ACE Market (Access, Certainty, Efficiency)
+    "leap": "malaysia",     # LEAP Market (Leading Entrepreneur Accelerator Platform)
+    # Hong Kong Stock Market Support
+    "hkex": "hongkong",     # Hong Kong Exchange
+    "hk": "hongkong",       # Hong Kong (alternate)
+    "hsi": "hongkong",      # Hang Seng Index constituents
     "nyse": "america",
 }
 
