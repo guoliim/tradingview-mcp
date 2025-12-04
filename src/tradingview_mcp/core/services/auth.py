@@ -195,31 +195,64 @@ class SecureAuthManager:
         try:
             import requests
 
-            # Use a lightweight endpoint to verify session
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+                "Referer": "https://www.tradingview.com/",
+                "Origin": "https://www.tradingview.com",
+            }
+
+            cookies = {
+                "sessionid": self._session_id,
+                "sessionid_sign": self._session_id_sign,
+            }
+
+            # Use the user data endpoint to verify session
             response = requests.get(
-                "https://www.tradingview.com/u/",
-                cookies={
-                    "sessionid": self._session_id,
-                    "sessionid_sign": self._session_id_sign,
-                },
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                },
+                "https://www.tradingview.com/api/v1/account/settings/",
+                cookies=cookies,
+                headers=headers,
                 timeout=10,
-                allow_redirects=False,
             )
 
-            # If redirected to sign-in, session is invalid
-            if response.status_code == 302:
-                location = response.headers.get("Location", "")
-                if "signin" in location.lower():
-                    return False, None
-
-            # 200 response typically means valid session
+            # 200 with valid JSON means authenticated
             if response.status_code == 200:
-                # Try to extract basic account info from response
-                account_info = self._extract_account_info(response.text)
-                return True, account_info
+                try:
+                    data = response.json()
+                    # If we get user data, session is valid
+                    account_info = {
+                        "username": data.get("username"),
+                        "plan": data.get("pro_plan") or "free",
+                    }
+                    return True, account_info
+                except Exception:
+                    pass
+
+            # Try alternative endpoint: symbols_list (returns 401 if not authed)
+            response2 = requests.get(
+                "https://www.tradingview.com/api/v1/symbols_list/",
+                cookies=cookies,
+                headers=headers,
+                timeout=10,
+            )
+
+            if response2.status_code == 200:
+                return True, {"username": "authenticated", "plan": "unknown"}
+
+            # 401 = Unauthorized, session invalid
+            if response2.status_code in (401, 403):
+                return False, None
+
+            # 404 might mean endpoint changed, try one more endpoint
+            response3 = requests.get(
+                "https://www.tradingview.com/pine_perm/list/",
+                cookies=cookies,
+                headers=headers,
+                timeout=10,
+            )
+
+            if response3.status_code == 200:
+                return True, {"username": "authenticated", "plan": "unknown"}
 
             return False, None
 
