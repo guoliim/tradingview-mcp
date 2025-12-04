@@ -60,7 +60,7 @@ class WatchlistManager:
         if not cookies:
             return {
                 "error": "Not authenticated",
-                "message": "Set TV_SESSION_ID environment variable to access watchlists",
+                "message": "Set TV_SESSION_ID and TV_SESSION_ID_SIGN environment variables to access watchlists",
                 "authenticated": False,
             }
 
@@ -76,7 +76,7 @@ class WatchlistManager:
             if response.status_code == 401:
                 return {
                     "error": "Session expired",
-                    "message": "Please update TV_SESSION_ID with a fresh session",
+                    "message": "Please update TV_SESSION_ID and TV_SESSION_ID_SIGN with fresh values",
                     "authenticated": False,
                 }
 
@@ -145,7 +145,7 @@ class WatchlistManager:
         if not cookies:
             return {
                 "error": "Not authenticated",
-                "message": "Set TV_SESSION_ID environment variable",
+                "message": "Set TV_SESSION_ID and TV_SESSION_ID_SIGN environment variables",
                 "authenticated": False,
             }
 

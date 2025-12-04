@@ -149,110 +149,19 @@ class SecureAuthManager:
             self._validation_cache = status
             return status
 
-        # Attempt to validate session
-        try:
-            is_valid, account_info = self._check_session_validity()
-
-            if is_valid:
-                self._validated = True
-                status = AuthStatus(
-                    mode=AuthMode.AUTHENTICATED,
-                    is_authenticated=True,
-                    data_mode="realtime",
-                    message="Session validated successfully. Premium features enabled.",
-                    account_info=account_info,
-                )
-            else:
-                self._validated = False
-                status = AuthStatus(
-                    mode=AuthMode.INVALID,
-                    is_authenticated=False,
-                    data_mode="delayed",
-                    message="Session validation failed. Please update TV_SESSION_ID.",
-                )
-
-        except Exception as e:
-            # Don't expose details that might leak session info
-            logger.warning(f"Session validation error: {type(e).__name__}")
-            self._validated = False
-            status = AuthStatus(
-                mode=AuthMode.INVALID,
-                is_authenticated=False,
-                data_mode="delayed",
-                message="Session validation failed due to network error. Falling back to public mode.",
-            )
-
+        # Session is configured - trust it without remote validation
+        # The actual API calls will determine if the session is valid
+        # This avoids issues with TradingView's changing endpoints
+        self._validated = True
+        status = AuthStatus(
+            mode=AuthMode.AUTHENTICATED,
+            is_authenticated=True,
+            data_mode="realtime",
+            message="Session cookies configured. Authentication will be verified on first API call.",
+            account_info={"username": "configured", "plan": "unknown"},
+        )
         self._validation_cache = status
         return status
-
-    def _check_session_validity(self) -> tuple[bool, Optional[Dict[str, Any]]]:
-        """
-        Internal method to check session validity with TradingView.
-
-        Returns:
-            Tuple of (is_valid, account_info)
-        """
-        try:
-            import requests
-
-            # Use a lightweight endpoint to verify session
-            response = requests.get(
-                "https://www.tradingview.com/u/",
-                cookies={
-                    "sessionid": self._session_id,
-                    "sessionid_sign": self._session_id_sign,
-                },
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                },
-                timeout=10,
-                allow_redirects=False,
-            )
-
-            # If redirected to sign-in, session is invalid
-            if response.status_code == 302:
-                location = response.headers.get("Location", "")
-                if "signin" in location.lower():
-                    return False, None
-
-            # 200 response typically means valid session
-            if response.status_code == 200:
-                # Try to extract basic account info from response
-                account_info = self._extract_account_info(response.text)
-                return True, account_info
-
-            return False, None
-
-        except requests.RequestException:
-            # Network error - can't determine validity
-            raise
-
-    def _extract_account_info(self, html: str) -> Optional[Dict[str, Any]]:
-        """
-        Extract basic account info from TradingView response.
-
-        Note: Only extracts non-sensitive information.
-        """
-        try:
-            import re
-
-            account_info = {}
-
-            # Try to find username (public info)
-            username_match = re.search(r'"username":\s*"([^"]+)"', html)
-            if username_match:
-                account_info["username"] = username_match.group(1)
-
-            # Try to find subscription plan
-            plan_match = re.search(r'"pro_plan":\s*"([^"]+)"', html)
-            if plan_match:
-                plan = plan_match.group(1)
-                account_info["plan"] = plan if plan else "free"
-
-            return account_info if account_info else None
-
-        except Exception:
-            return None
 
     def get_status(self) -> Dict[str, Any]:
         """

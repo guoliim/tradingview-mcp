@@ -12,7 +12,6 @@ dependencies = [
 ]
 
 [project.scripts]
-# Entry point now points to packaged module
 tradingview-mcp = "tradingview_mcp.server:main"
 
 [tool.setuptools.packages.find]
