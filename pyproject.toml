@@ -9,6 +9,7 @@ dependencies = [
   "tradingview-screener>=0.6.4",
   "tradingview-ta>=3.3.0",
   "requests>=2.28.0",
+  "rookiepy>=0.5.0",
 ]
 
 [project.scripts]

@@ -7,6 +7,7 @@ from .support_resistance import (
     calculate_support_resistance_for_symbol,
     batch_support_resistance,
 )
+from .auth import get_cookies, get_auth_status, refresh_cookies
 
 __all__ = [
     "compute_metrics",
@@ -16,4 +17,7 @@ __all__ = [
     "SupportResistanceCalculator",
     "calculate_support_resistance_for_symbol",
     "batch_support_resistance",
+    "get_cookies",
+    "get_auth_status",
+    "refresh_cookies",
 ]

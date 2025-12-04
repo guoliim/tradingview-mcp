@@ -58,6 +58,16 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
 
 3. **Restart Claude Desktop** - The server will be automatically available!
 
+### 🔐 Real-time Data (Optional)
+
+By default, data has a 15-minute delay. For **real-time data**, simply login to TradingView in your browser:
+
+1. Open [TradingView](https://www.tradingview.com) in Chrome/Firefox/Edge
+2. Login to your account
+3. The MCP will automatically detect your session via `rookiepy`
+
+Use `tv_auth_status` to check if real-time data is enabled.
+
 📋 **For detailed Windows instructions, see [INSTALLATION.md](INSTALLATION.md)**
 
 ### Option 2: Manual Installation
@@ -123,6 +133,12 @@ uv sync
 | `advanced_candle_pattern` | Multi-timeframe pattern analysis | Complex pattern detection |
 | `calculate_support_resistance` | Calculate S/R levels using Pivot Points, Fibonacci, MAs | Support/resistance for AAPL across 1D,1W,1M |
 | `batch_support_resistance_analysis` | Calculate S/R for multiple symbols | Batch S/R analysis for portfolio |
+
+### 🔐 Authentication
+| Tool | Description |
+|------|-------------|
+| `tv_auth_status` | Check if logged in (real-time vs delayed data) |
+| `tv_auth_refresh` | Refresh session from browser cookies |
 
 ### 📋 Information
 | Tool | Description |

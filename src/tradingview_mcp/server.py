@@ -14,6 +14,7 @@ from tradingview_mcp.core.services.support_resistance import (
     calculate_support_resistance_for_symbol,
     batch_support_resistance,
 )
+from tradingview_mcp.core.services.auth import get_cookies, get_auth_status, refresh_cookies
 
 try:
     from tradingview_ta import TA_Handler, get_multiple_analysis
@@ -210,12 +211,15 @@ def _fetch_trending_analysis(exchange: str, timeframe: str = "5m", filter_type: 
     all_coins.sort(key=lambda x: x["changePercent"], reverse=True)
     
     return all_coins[:limit]
-def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timeframe: str = "4h", limit: int | None = None, cookies: Any | None = None) -> List[MultiRow]:
+def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timeframe: str = "4h", limit: int | None = None) -> List[MultiRow]:
 	try:
 		from tradingview_screener import Query
 		from tradingview_screener.column import Column
 	except Exception as e:
 		raise RuntimeError("tradingview-screener missing; run `uv sync`.") from e
+
+	# Get browser cookies for real-time data
+	cookies = get_cookies()
 
 	tfs = timeframes or ["15m", "1h", "4h", "1D"]
 	suffix_map: dict[str, str] = {}
@@ -273,8 +277,36 @@ def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timef
 
 mcp = FastMCP(
 	name="TradingView Screener",
-	instructions=("Stock market screener utilities backed by TradingView Screener. Supports NASDAQ, NYSE, and HKEX markets. Tools: top_gainers, top_losers, bollinger_scan, rating_filter, coin_analysis, volume_breakout_scanner, calculate_support_resistance."),
+	instructions=("Stock market screener utilities backed by TradingView Screener. Supports NASDAQ, NYSE, and HKEX markets. Real-time data available when logged in to TradingView in browser."),
 )
+
+
+@mcp.tool()
+def tv_auth_status() -> dict:
+    """Check TradingView authentication status.
+
+    Uses rookiepy to detect if you're logged in to TradingView in your browser.
+    When authenticated, screener data will be real-time instead of 15-min delayed.
+
+    Returns:
+        Authentication status including browser used and login state.
+    """
+    return get_auth_status()
+
+
+@mcp.tool()
+def tv_auth_refresh(browser: str = "chrome") -> dict:
+    """Refresh TradingView authentication from browser.
+
+    Re-reads cookies from your browser. Use after logging in to TradingView.
+
+    Args:
+        browser: Browser to use (chrome, firefox, edge, brave, opera, chromium)
+
+    Returns:
+        Updated authentication status.
+    """
+    return refresh_cookies(browser)
 
 
 @mcp.tool()
@@ -1167,7 +1199,9 @@ def _fetch_multi_timeframe_patterns(exchange: str, symbols: List[str], base_tf: 
         q = q.where(Column("exchange") == exchange.upper())
         q = q.limit(len(symbols))
 
-        total, df = q.get_scanner_data()
+        # Use browser cookies for real-time data
+        cookies = get_cookies()
+        total, df = q.get_scanner_data(cookies=cookies)
         
         if df is None or df.empty:
             return []

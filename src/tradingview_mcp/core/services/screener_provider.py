@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Dict, Any, Optional
 from ..utils.validators import get_market_for_exchange
+from .auth import get_cookies
 
 
 def _tf_to_tv_resolution(tf: Optional[str]) -> Optional[str]:
@@ -69,7 +70,9 @@ def fetch_screener_indicators(
     if limit:
         q = q.limit(int(limit))
 
-    total, df = q.get_scanner_data()
+    # Use browser cookies for real-time data
+    cookies = get_cookies()
+    total, df = q.get_scanner_data(cookies=cookies)
 
     rows: List[Dict[str, Any]] = []
     if df is None or df.empty:
@@ -172,7 +175,9 @@ def fetch_screener_multi_changes(
     if limit:
         q = q.limit(int(limit))
 
-    total, df = q.get_scanner_data()
+    # Use browser cookies for real-time data
+    cookies = get_cookies()
+    total, df = q.get_scanner_data(cookies=cookies)
     rows: List[Dict[str, Any]] = []
     if df is None or df.empty:
         return rows
