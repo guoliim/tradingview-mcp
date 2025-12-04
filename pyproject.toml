@@ -11,9 +11,15 @@ dependencies = [
   "requests>=2.28.0",
 ]
 
+[project.optional-dependencies]
+# Browser login helper (optional)
+login = ["playwright>=1.40.0"]
+
 [project.scripts]
 # Entry point now points to packaged module
 tradingview-mcp = "tradingview_mcp.server:main"
+# Login helper command
+tradingview-login = "tradingview_mcp.login:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

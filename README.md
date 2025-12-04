@@ -62,14 +62,33 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
 
 To unlock real-time data and premium features, configure your TradingView session:
 
-**Step 1: Get your Session Cookies**
+#### Option A: Browser Login Helper (Recommended)
+
+Use our automated login helper that opens a browser for you to login:
+
+```bash
+# Install with login support
+uv pip install "tradingview-mcp[login]"
+playwright install chromium
+
+# Run login helper
+tradingview-login
+```
+
+The tool will:
+1. Open a browser window
+2. Wait for you to login to TradingView
+3. Automatically extract and display the session cookies
+
+#### Option B: Manual Cookie Extraction
+
 1. Login to [TradingView](https://www.tradingview.com) in your browser
 2. Open DevTools: `F12` → `Application` → `Cookies` → `tradingview.com`
 3. Copy **BOTH** cookie values:
    - `sessionid` - Your session identifier
    - `sessionid_sign` - Session signature (required for authentication)
 
-**Step 2: Configure Environment Variables**
+#### Configure Environment Variables
 
 Update your Claude Desktop configuration with both values:
 
