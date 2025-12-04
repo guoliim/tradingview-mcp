@@ -165,12 +165,14 @@ uv sync
 | `bollinger_scan` | Find assets with tight Bollinger Bands | Coins ready for breakout |
 | `rating_filter` | Filter by Bollinger Band rating | Strong buy signals (rating +2) |
 
-### 🔍 Technical Analysis  
+### 🔍 Technical Analysis
 | Tool | Description | Example Usage |
 |------|-------------|---------------|
 | `coin_analysis` | Complete technical analysis | Analyze BTC with all indicators |
 | `consecutive_candles_scan` | Find candlestick patterns | 3+ consecutive green candles |
 | `advanced_candle_pattern` | Multi-timeframe pattern analysis | Complex pattern detection |
+| `calculate_support_resistance` | Calculate S/R levels using Pivot Points, Fibonacci, MAs | Support/resistance for AAPL across 1D,1W,1M |
+| `batch_support_resistance_analysis` | Calculate S/R for multiple symbols | Batch S/R analysis for portfolio |
 
 ### 🔐 Authentication & User Data
 | Tool | Description |
@@ -209,6 +211,14 @@ uv sync
 "Find crypto coins with Bollinger Band squeeze (BBW < 0.05)"
 "Show me coins with strong buy signals (rating +2)"
 "Analyze IBM stock on NYSE with technical indicators"
+```
+
+**Support & Resistance Levels:**
+```
+"Calculate support and resistance levels for AAPL across 1D, 1W, 1M periods"
+"What are the key pivot points for TSLA this week?"
+"Find Fibonacci retracement levels for NVDA over 3 months"
+"Batch analyze support/resistance for AAPL, MSFT, GOOGL"
 ```
 
 **Pattern Recognition:**

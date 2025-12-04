@@ -14,6 +14,10 @@ from tradingview_mcp.core.utils.validators import sanitize_timeframe, sanitize_e
 # Import authentication module
 from tradingview_mcp.core.services.auth import get_auth_manager, get_cookies
 from tradingview_mcp.core.services.watchlist import get_watchlist_manager
+from tradingview_mcp.core.services.support_resistance import (
+    calculate_support_resistance_for_symbol,
+    batch_support_resistance,
+)
 
 try:
     from tradingview_ta import TA_Handler, get_multiple_analysis
@@ -455,6 +459,72 @@ def tv_user_info() -> dict:
     """
     wm = get_watchlist_manager()
     return wm.get_user_info()
+
+
+@mcp.tool()
+def calculate_support_resistance(
+    symbol: str,
+    exchange: str = "NASDAQ",
+    periods: str = "1D,1W,1M,3M"
+) -> dict:
+    """Calculate support and resistance levels for a stock/crypto using technical analysis.
+
+    Uses multiple methods: Pivot Points (Classic & Fibonacci), Fibonacci Retracement,
+    and Moving Averages as dynamic S/R levels.
+
+    Args:
+        symbol: Stock or crypto symbol (e.g., "AAPL", "TSLA", "BTC")
+        exchange: Exchange name (NASDAQ, NYSE, HKEX, BINANCE, KUCOIN)
+        periods: Comma-separated periods to analyze (1D, 1W, 1M, 3M, 6M, 1Y)
+
+    Returns:
+        Support/resistance levels for each period including:
+        - Pivot points (classic and fibonacci methods)
+        - Fibonacci retracement levels
+        - Key moving averages (SMA20, EMA50, SMA100, SMA200)
+        - Nearest support and resistance from current price
+
+    Example:
+        calculate_support_resistance("AAPL", "NASDAQ", "1D,1W,1M")
+    """
+    # Parse periods
+    period_list = [p.strip().upper() for p in periods.split(",") if p.strip()]
+    valid_periods = ["1D", "1W", "1M", "3M", "6M", "1Y"]
+    period_list = [p for p in period_list if p in valid_periods]
+
+    if not period_list:
+        period_list = ["1D", "1W", "1M"]
+
+    return calculate_support_resistance_for_symbol(
+        symbol=symbol.upper(),
+        exchange=exchange.upper(),
+        periods=period_list
+    )
+
+
+@mcp.tool()
+def batch_support_resistance_analysis(
+    symbols: str,
+    exchange: str = "NASDAQ",
+    periods: str = "1D,1W,1M"
+) -> list:
+    """Calculate support/resistance levels for multiple symbols.
+
+    Args:
+        symbols: Comma-separated list of symbols (e.g., "AAPL,MSFT,GOOGL")
+        exchange: Exchange name
+        periods: Comma-separated periods to analyze
+
+    Returns:
+        List of support/resistance analysis for each symbol (max 10 symbols).
+    """
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()][:10]
+    period_list = [p.strip().upper() for p in periods.split(",") if p.strip()]
+
+    valid_periods = ["1D", "1W", "1M", "3M", "6M", "1Y"]
+    period_list = [p for p in period_list if p in valid_periods] or ["1D", "1W", "1M"]
+
+    return batch_support_resistance(symbol_list, exchange.upper(), period_list)
 
 
 @mcp.tool()
