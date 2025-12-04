@@ -58,37 +58,19 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
 
 3. **Restart Claude Desktop** - The server will be automatically available!
 
-### 🔐 Enable Premium Features (Real-time Data)
+### 🔐 Enable Premium Features (Optional)
 
-To unlock real-time data and premium features, configure your TradingView session:
+To unlock premium features, configure your TradingView session cookies:
 
-#### Option A: Browser Login Helper (Recommended)
-
-Use our automated login helper that opens a browser for you to login:
-
-```bash
-# Install with login support
-uv pip install "tradingview-mcp[login]"
-playwright install chromium
-
-# Run login helper
-tradingview-login
-```
-
-The tool will:
-1. Open a browser window
-2. Wait for you to login to TradingView
-3. Automatically extract and display the session cookies
-
-#### Option B: Manual Cookie Extraction
+**Step 1: Get Session Cookies**
 
 1. Login to [TradingView](https://www.tradingview.com) in your browser
 2. Open DevTools: `F12` → `Application` → `Cookies` → `tradingview.com`
 3. Copy **BOTH** cookie values:
    - `sessionid` - Your session identifier
-   - `sessionid_sign` - Session signature (required for authentication)
+   - `sessionid_sign` - Session signature (required)
 
-#### Configure Environment Variables
+**Step 2: Configure Environment Variables**
 
 Update your Claude Desktop configuration with both values:
 
