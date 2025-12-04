@@ -62,14 +62,16 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
 
 To unlock real-time data and premium features, configure your TradingView session:
 
-**Step 1: Get your Session ID**
+**Step 1: Get your Session Cookies**
 1. Login to [TradingView](https://www.tradingview.com) in your browser
 2. Open DevTools: `F12` → `Application` → `Cookies` → `tradingview.com`
-3. Copy the `sessionid` cookie value
+3. Copy **BOTH** cookie values:
+   - `sessionid` - Your session identifier
+   - `sessionid_sign` - Session signature (required for authentication)
 
-**Step 2: Configure Environment Variable**
+**Step 2: Configure Environment Variables**
 
-Update your Claude Desktop configuration with the session ID:
+Update your Claude Desktop configuration with both values:
 
 ```json
 {
@@ -82,7 +84,8 @@ Update your Claude Desktop configuration with the session ID:
         "tradingview-mcp"
       ],
       "env": {
-        "TV_SESSION_ID": "your_session_id_here"
+        "TV_SESSION_ID": "your_sessionid_value",
+        "TV_SESSION_ID_SIGN": "your_sessionid_sign_value"
       }
     }
   }
@@ -92,11 +95,15 @@ Update your Claude Desktop configuration with the session ID:
 **Or set via command line:**
 ```bash
 # Linux/macOS
-export TV_SESSION_ID="your_session_id_here"
+export TV_SESSION_ID="your_sessionid_value"
+export TV_SESSION_ID_SIGN="your_sessionid_sign_value"
 
 # Windows PowerShell
-$env:TV_SESSION_ID="your_session_id_here"
+$env:TV_SESSION_ID="your_sessionid_value"
+$env:TV_SESSION_ID_SIGN="your_sessionid_sign_value"
 ```
+
+> ⚠️ **Important**: Both `TV_SESSION_ID` and `TV_SESSION_ID_SIGN` are required. TradingView uses dual-cookie authentication for security.
 
 | Mode | Data Latency | Rate Limits |
 |------|--------------|-------------|

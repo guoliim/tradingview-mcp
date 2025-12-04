@@ -49,34 +49,47 @@ class SecureAuthManager:
         if auth.is_authenticated:
             cookies = auth.get_cookies()
             # Use cookies for API calls
+
+    Required environment variables:
+        TV_SESSION_ID: The sessionid cookie value
+        TV_SESSION_ID_SIGN: The sessionid_sign cookie value (required for auth)
     """
 
-    # Environment variable name for session ID
+    # Environment variable names
     ENV_SESSION_ID = "TV_SESSION_ID"
+    ENV_SESSION_ID_SIGN = "TV_SESSION_ID_SIGN"
 
     def __init__(self):
         """Initialize auth manager, loading session from environment."""
         self._session_id: Optional[str] = None
+        self._session_id_sign: Optional[str] = None
         self._validated: bool = False
         self._validation_cache: Optional[AuthStatus] = None
 
-        # Load session ID from environment
+        # Load session from environment
         self._load_from_environment()
 
     def _load_from_environment(self) -> None:
-        """Load session ID from environment variable."""
+        """Load session ID and signature from environment variables."""
         session_id = os.environ.get(self.ENV_SESSION_ID, "").strip()
+        session_id_sign = os.environ.get(self.ENV_SESSION_ID_SIGN, "").strip()
 
-        if session_id:
-            # Basic validation: session ID should be a non-empty string
+        if session_id and session_id_sign:
+            # Basic validation: both values should be non-empty strings
             # TradingView session IDs are typically 20-50 characters
-            if len(session_id) >= 10:
+            if len(session_id) >= 10 and len(session_id_sign) >= 10:
                 self._session_id = session_id
-                logger.info("Session ID loaded from environment variable")
+                self._session_id_sign = session_id_sign
+                logger.info("Session ID and signature loaded from environment variables")
             else:
-                logger.warning("Session ID in environment variable appears invalid (too short)")
+                logger.warning("Session ID or signature in environment variable appears invalid (too short)")
+        elif session_id and not session_id_sign:
+            logger.warning(
+                f"TV_SESSION_ID is set but TV_SESSION_ID_SIGN is missing. "
+                f"Both are required for authentication. Running in public mode."
+            )
         else:
-            logger.info("No session ID configured - running in public mode")
+            logger.info("No session configured - running in public mode")
 
     @property
     def is_authenticated(self) -> bool:
@@ -85,22 +98,25 @@ class SecureAuthManager:
 
     @property
     def has_session(self) -> bool:
-        """Check if a session ID is configured (may not be validated yet)."""
-        return self._session_id is not None
+        """Check if session credentials are configured (may not be validated yet)."""
+        return self._session_id is not None and self._session_id_sign is not None
 
     def get_cookies(self) -> Optional[Dict[str, str]]:
         """
         Get cookies for API requests.
 
         Returns:
-            Dict with sessionid cookie if authenticated, None otherwise.
+            Dict with sessionid and sessionid_sign cookies if configured, None otherwise.
 
         Security note:
             Only call this method when actually needed for API requests.
             Do not log or expose the returned cookies.
         """
-        if self._session_id:
-            return {"sessionid": self._session_id}
+        if self._session_id and self._session_id_sign:
+            return {
+                "sessionid": self._session_id,
+                "sessionid_sign": self._session_id_sign,
+            }
         return None
 
     def validate_session(self, force: bool = False) -> AuthStatus:
@@ -118,12 +134,17 @@ class SecureAuthManager:
             return self._validation_cache
 
         # No session configured
-        if not self._session_id:
+        if not self._session_id or not self._session_id_sign:
+            missing = []
+            if not self._session_id:
+                missing.append("TV_SESSION_ID")
+            if not self._session_id_sign:
+                missing.append("TV_SESSION_ID_SIGN")
             status = AuthStatus(
                 mode=AuthMode.PUBLIC,
                 is_authenticated=False,
                 data_mode="delayed",
-                message="No session configured. Set TV_SESSION_ID environment variable for premium features.",
+                message=f"Missing environment variables: {', '.join(missing)}. Both are required for premium features.",
             )
             self._validation_cache = status
             return status
@@ -177,9 +198,12 @@ class SecureAuthManager:
             # Use a lightweight endpoint to verify session
             response = requests.get(
                 "https://www.tradingview.com/u/",
-                cookies={"sessionid": self._session_id},
+                cookies={
+                    "sessionid": self._session_id,
+                    "sessionid_sign": self._session_id_sign,
+                },
                 headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; TradingView-MCP/1.0)",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 },
                 timeout=10,
                 allow_redirects=False,
@@ -244,8 +268,11 @@ class SecureAuthManager:
             "mode": status.mode.value,
             "data_mode": status.data_mode,
             "message": status.message,
-            "env_var_configured": self.has_session,
-            "env_var_name": self.ENV_SESSION_ID,
+            "env_vars_configured": self.has_session,
+            "env_vars": {
+                "TV_SESSION_ID": self._session_id is not None,
+                "TV_SESSION_ID_SIGN": self._session_id_sign is not None,
+            },
         }
 
         if status.account_info:
@@ -264,6 +291,7 @@ class SecureAuthManager:
         Use this for logout functionality or security purposes.
         """
         self._session_id = None
+        self._session_id_sign = None
         self._validated = False
         self._validation_cache = None
         logger.info("Session cleared from memory")
