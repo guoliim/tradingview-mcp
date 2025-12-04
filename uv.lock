@@ -894,6 +894,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "mcp", extra = ["cli"] },
+    { name = "requests" },
     { name = "tradingview-screener" },
     { name = "tradingview-ta" },
 ]
@@ -901,6 +902,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.0" },
+    { name = "requests", specifier = ">=2.28.0" },
     { name = "tradingview-screener", specifier = ">=0.6.4" },
     { name = "tradingview-ta", specifier = ">=3.3.0" },
 ]

@@ -11,6 +11,14 @@ from tradingview_mcp.core.services.indicators import compute_metrics
 from tradingview_mcp.core.services.coinlist import load_symbols
 from tradingview_mcp.core.utils.validators import sanitize_timeframe, sanitize_exchange, EXCHANGE_SCREENER, ALLOWED_TIMEFRAMES, get_market_for_exchange
 
+# Import authentication module
+from tradingview_mcp.core.services.auth import get_auth_manager, get_cookies
+from tradingview_mcp.core.services.watchlist import get_watchlist_manager
+from tradingview_mcp.core.services.support_resistance import (
+    calculate_support_resistance_for_symbol,
+    batch_support_resistance,
+)
+
 try:
     from tradingview_ta import TA_Handler, get_multiple_analysis
     TRADINGVIEW_TA_AVAILABLE = True
@@ -206,12 +214,16 @@ def _fetch_trending_analysis(exchange: str, timeframe: str = "5m", filter_type: 
     all_coins.sort(key=lambda x: x["changePercent"], reverse=True)
     
     return all_coins[:limit]
-def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timeframe: str = "4h", limit: int | None = None, cookies: Any | None = None) -> List[MultiRow]:
+def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timeframe: str = "4h", limit: int | None = None, cookies: Any | None = None, use_auth: bool = True) -> List[MultiRow]:
 	try:
 		from tradingview_screener import Query
 		from tradingview_screener.column import Column
 	except Exception as e:
 		raise RuntimeError("tradingview-screener missing; run `uv sync`.") from e
+
+	# Use authenticated cookies if available and not explicitly provided
+	if cookies is None and use_auth:
+		cookies = get_cookies()
 
 	tfs = timeframes or ["15m", "1h", "4h", "1D"]
 	suffix_map: dict[str, str] = {}
@@ -269,8 +281,250 @@ def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timef
 
 mcp = FastMCP(
 	name="TradingView Screener",
-	instructions=("Stock market screener utilities backed by TradingView Screener. Supports NASDAQ, NYSE, and HKEX markets. Tools: top_gainers, top_losers, bollinger_scan, rating_filter, coin_analysis, volume_breakout_scanner."),
+	instructions=("Stock market screener utilities backed by TradingView Screener. Supports NASDAQ, NYSE, and HKEX markets. Tools: top_gainers, top_losers, bollinger_scan, rating_filter, coin_analysis, volume_breakout_scanner. Set TV_SESSION_ID environment variable to enable premium features with real-time data."),
 )
+
+
+@mcp.tool()
+def tv_auth_status() -> dict:
+    """Check TradingView authentication status and premium features availability.
+
+    Returns current authentication state, data mode (realtime/delayed),
+    and instructions for enabling premium features.
+
+    No sensitive information (like session IDs) is ever exposed.
+    """
+    auth = get_auth_manager()
+    status = auth.get_status()
+
+    # Add helpful instructions
+    if not status["authenticated"]:
+        status["setup_instructions"] = {
+            "step1": "Login to TradingView in your browser",
+            "step2": "Open DevTools (F12) -> Application -> Cookies -> tradingview.com",
+            "step3": "Copy the 'sessionid' cookie value",
+            "step4": f"Set environment variable: export {auth.ENV_SESSION_ID}=<your_session_id>",
+            "step5": "Restart the MCP server",
+        }
+        status["features_comparison"] = {
+            "public_mode": {
+                "data": "Delayed (15 minutes)",
+                "rate_limit": "Standard",
+                "exchanges": "Limited real-time",
+            },
+            "premium_mode": {
+                "data": "Real-time",
+                "rate_limit": "Higher",
+                "exchanges": "Full real-time access",
+            },
+        }
+
+    return status
+
+
+@mcp.tool()
+def tv_auth_refresh() -> dict:
+    """Refresh authentication by reloading session from environment variable.
+
+    Use this after updating the TV_SESSION_ID environment variable
+    without restarting the server.
+
+    Returns:
+        Updated authentication status.
+    """
+    auth = get_auth_manager()
+    auth.refresh_from_environment()
+    return auth.get_status()
+
+
+@mcp.tool()
+def tv_get_watchlists() -> dict:
+    """Get all user watchlists from TradingView account.
+
+    Requires TV_SESSION_ID environment variable to be set.
+    Returns list of watchlists with their IDs, names, and symbol counts.
+
+    Example response:
+        {
+            "authenticated": true,
+            "count": 2,
+            "watchlists": [
+                {"id": "abc123", "name": "My Stocks", "symbols_count": 15},
+                {"id": "xyz789", "name": "Tech Watch", "symbols_count": 8}
+            ]
+        }
+    """
+    wm = get_watchlist_manager()
+    return wm.get_watchlists()
+
+
+@mcp.tool()
+def tv_get_watchlist_symbols(watchlist_id: str) -> dict:
+    """Get symbols from a specific TradingView watchlist.
+
+    Args:
+        watchlist_id: The watchlist ID (from tv_get_watchlists or TradingView URL)
+
+    Returns:
+        List of symbols in the watchlist with count.
+
+    Example:
+        tv_get_watchlist_symbols("abc123")
+        -> {"symbols": ["NASDAQ:AAPL", "NYSE:IBM", ...], "count": 15}
+    """
+    wm = get_watchlist_manager()
+    return wm.get_watchlist_symbols(watchlist_id)
+
+
+@mcp.tool()
+def tv_analyze_watchlist(watchlist_id: str, timeframe: str = "1D") -> dict:
+    """Analyze all stocks in a TradingView watchlist with technical indicators.
+
+    Fetches the watchlist symbols and performs batch technical analysis.
+
+    Args:
+        watchlist_id: The watchlist ID to analyze
+        timeframe: Timeframe for analysis (5m, 15m, 1h, 4h, 1D, 1W, 1M)
+
+    Returns:
+        Technical analysis results for all symbols in the watchlist.
+    """
+    wm = get_watchlist_manager()
+    result = wm.get_watchlist_symbols(watchlist_id)
+
+    if "error" in result:
+        return result
+
+    symbols = result.get("symbols", [])
+    if not symbols:
+        return {
+            "error": "Watchlist is empty or not found",
+            "watchlist_id": watchlist_id,
+        }
+
+    # Limit to 20 symbols for batch analysis
+    symbols_to_analyze = symbols[:20]
+
+    # Extract just the symbol part (remove exchange prefix for batch_stock_analysis)
+    clean_symbols = []
+    for sym in symbols_to_analyze:
+        if ":" in sym:
+            clean_symbols.append(sym.split(":")[-1])
+        else:
+            clean_symbols.append(sym)
+
+    # Use batch analysis
+    analysis_result = batch_stock_analysis(
+        symbols=",".join(clean_symbols),
+        timeframe=timeframe,
+    )
+
+    return {
+        "watchlist_id": watchlist_id,
+        "watchlist_name": result.get("name", "Unknown"),
+        "total_symbols": len(symbols),
+        "analyzed_count": len(symbols_to_analyze),
+        "timeframe": timeframe,
+        "analysis": analysis_result,
+    }
+
+
+@mcp.tool()
+def tv_add_to_watchlist(watchlist_id: str, symbols: str) -> dict:
+    """Add symbols to a TradingView watchlist.
+
+    Args:
+        watchlist_id: Target watchlist ID
+        symbols: Comma-separated symbols (e.g., "AAPL,MSFT,GOOGL" or "NASDAQ:AAPL,NYSE:IBM")
+
+    Returns:
+        Operation result with success status.
+    """
+    wm = get_watchlist_manager()
+
+    # Parse symbols
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        return {"error": "No valid symbols provided"}
+
+    return wm.add_to_watchlist(watchlist_id, symbol_list)
+
+
+@mcp.tool()
+def tv_user_info() -> dict:
+    """Get current TradingView user information.
+
+    Returns authenticated user's username and subscription plan.
+    Requires TV_SESSION_ID to be set.
+    """
+    wm = get_watchlist_manager()
+    return wm.get_user_info()
+
+
+@mcp.tool()
+def calculate_support_resistance(
+    symbol: str,
+    exchange: str = "NASDAQ",
+    periods: str = "1D,1W,1M,3M"
+) -> dict:
+    """Calculate support and resistance levels for a stock/crypto using technical analysis.
+
+    Uses multiple methods: Pivot Points (Classic & Fibonacci), Fibonacci Retracement,
+    and Moving Averages as dynamic S/R levels.
+
+    Args:
+        symbol: Stock or crypto symbol (e.g., "AAPL", "TSLA", "BTC")
+        exchange: Exchange name (NASDAQ, NYSE, HKEX, BINANCE, KUCOIN)
+        periods: Comma-separated periods to analyze (1D, 1W, 1M, 3M, 6M, 1Y)
+
+    Returns:
+        Support/resistance levels for each period including:
+        - Pivot points (classic and fibonacci methods)
+        - Fibonacci retracement levels
+        - Key moving averages (SMA20, EMA50, SMA100, SMA200)
+        - Nearest support and resistance from current price
+
+    Example:
+        calculate_support_resistance("AAPL", "NASDAQ", "1D,1W,1M")
+    """
+    # Parse periods
+    period_list = [p.strip().upper() for p in periods.split(",") if p.strip()]
+    valid_periods = ["1D", "1W", "1M", "3M", "6M", "1Y"]
+    period_list = [p for p in period_list if p in valid_periods]
+
+    if not period_list:
+        period_list = ["1D", "1W", "1M"]
+
+    return calculate_support_resistance_for_symbol(
+        symbol=symbol.upper(),
+        exchange=exchange.upper(),
+        periods=period_list
+    )
+
+
+@mcp.tool()
+def batch_support_resistance_analysis(
+    symbols: str,
+    exchange: str = "NASDAQ",
+    periods: str = "1D,1W,1M"
+) -> list:
+    """Calculate support/resistance levels for multiple symbols.
+
+    Args:
+        symbols: Comma-separated list of symbols (e.g., "AAPL,MSFT,GOOGL")
+        exchange: Exchange name
+        periods: Comma-separated periods to analyze
+
+    Returns:
+        List of support/resistance analysis for each symbol (max 10 symbols).
+    """
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()][:10]
+    period_list = [p.strip().upper() for p in periods.split(",") if p.strip()]
+
+    valid_periods = ["1D", "1W", "1M", "3M", "6M", "1Y"]
+    period_list = [p for p in period_list if p in valid_periods] or ["1D", "1W", "1M"]
+
+    return batch_support_resistance(symbol_list, exchange.upper(), period_list)
 
 
 @mcp.tool()
@@ -1076,11 +1330,11 @@ def _fetch_multi_timeframe_patterns(exchange: str, symbols: List[str], base_tf: 
     try:
         from tradingview_screener import Query
         from tradingview_screener.column import Column
-        
+
         # Map timeframe to TradingView format
         tf_map = {"5m": "5", "15m": "15", "1h": "60", "4h": "240", "1D": "1D"}
         tv_interval = tf_map.get(base_tf, "15")
-        
+
         # Create query for OHLC data
         cols = [
             f"open|{tv_interval}",
@@ -1096,8 +1350,10 @@ def _fetch_multi_timeframe_patterns(exchange: str, symbols: List[str], base_tf: 
         q = Query().set_markets(market).select(*cols)
         q = q.where(Column("exchange") == exchange.upper())
         q = q.limit(len(symbols))
-        
-        total, df = q.get_scanner_data()
+
+        # Use authenticated cookies if available
+        cookies = get_cookies()
+        total, df = q.get_scanner_data(cookies=cookies)
         
         if df is None or df.empty:
             return []
