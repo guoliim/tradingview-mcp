@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 # Import bollinger band screener modules
 from tradingview_mcp.core.services.indicators import compute_metrics
 from tradingview_mcp.core.services.coinlist import load_symbols
-from tradingview_mcp.core.utils.validators import sanitize_timeframe, sanitize_exchange, EXCHANGE_SCREENER, ALLOWED_TIMEFRAMES
+from tradingview_mcp.core.utils.validators import sanitize_timeframe, sanitize_exchange, EXCHANGE_SCREENER, ALLOWED_TIMEFRAMES, get_market_for_exchange
 
 try:
     from tradingview_ta import TA_Handler, get_multiple_analysis
@@ -90,7 +90,7 @@ def _fetch_bollinger_analysis(exchange: str, timeframe: str = "4h", limit: int =
     symbols = symbols[:limit * 2]  # Get more to filter later
     
     # Get screener type based on exchange
-    screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+    screener = EXCHANGE_SCREENER.get(exchange, "america")
     
     try:
         analysis = get_multiple_analysis(screener=screener, interval=timeframe, symbols=symbols)
@@ -156,7 +156,7 @@ def _fetch_trending_analysis(exchange: str, timeframe: str = "5m", filter_type: 
     batch_size = 200  # Considering API limitations
     all_coins = []
     
-    screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+    screener = EXCHANGE_SCREENER.get(exchange, "america")
     
     # Process symbols in batches
     for i in range(0, len(symbols), batch_size):
@@ -235,7 +235,9 @@ def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timef
 			cols.append(c)
 			seen.add(c)
 
-	q = Query().set_markets("crypto").select(*cols)
+	# Dynamically determine market based on exchange
+	market = get_market_for_exchange(exchange)
+	q = Query().set_markets(market).select(*cols)
 	if exchange:
 		q = q.where(Column("exchange") == exchange.upper())
 	if limit:
@@ -267,20 +269,20 @@ def _fetch_multi_changes(exchange: str, timeframes: List[str] | None, base_timef
 
 mcp = FastMCP(
 	name="TradingView Screener",
-	instructions=("Crypto screener utilities backed by TradingView Screener. Tools: top_gainers, top_losers, multi_changes."),
+	instructions=("Stock market screener utilities backed by TradingView Screener. Supports NASDAQ, NYSE, and HKEX markets. Tools: top_gainers, top_losers, bollinger_scan, rating_filter, coin_analysis, volume_breakout_scanner."),
 )
 
 
 @mcp.tool()
-def top_gainers(exchange: str = "KUCOIN", timeframe: str = "15m", limit: int = 25) -> list[dict]:
+def top_gainers(exchange: str = "NASDAQ", timeframe: str = "1D", limit: int = 25) -> list[dict]:
     """Return top gainers for an exchange and timeframe using bollinger band analysis.
-    
+
     Args:
-        exchange: Exchange name like KUCOIN, BINANCE, BYBIT, etc.
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
         timeframe: One of 5m, 15m, 1h, 4h, 1D, 1W, 1M
         limit: Number of rows to return (max 50)
     """
-    exchange = sanitize_exchange(exchange, "KUCOIN")
+    exchange = sanitize_exchange(exchange, "nasdaq")
     timeframe = sanitize_timeframe(timeframe, "15m")
     limit = max(1, min(limit, 50))
     
@@ -294,9 +296,9 @@ def top_gainers(exchange: str = "KUCOIN", timeframe: str = "15m", limit: int = 2
 
 
 @mcp.tool()
-def top_losers(exchange: str = "KUCOIN", timeframe: str = "15m", limit: int = 25) -> list[dict]:
+def top_losers(exchange: str = "NASDAQ", timeframe: str = "1D", limit: int = 25) -> list[dict]:
     """Return top losers for an exchange and timeframe using bollinger band analysis."""
-    exchange = sanitize_exchange(exchange, "KUCOIN")
+    exchange = sanitize_exchange(exchange, "nasdaq")
     timeframe = sanitize_timeframe(timeframe, "15m")
     limit = max(1, min(limit, 50))
     
@@ -313,16 +315,16 @@ def top_losers(exchange: str = "KUCOIN", timeframe: str = "15m", limit: int = 25
 
 
 @mcp.tool()
-def bollinger_scan(exchange: str = "KUCOIN", timeframe: str = "4h", bbw_threshold: float = 0.04, limit: int = 50) -> list[dict]:
-    """Scan for coins with low Bollinger Band Width (squeeze detection).
-    
+def bollinger_scan(exchange: str = "NASDAQ", timeframe: str = "1D", bbw_threshold: float = 0.04, limit: int = 50) -> list[dict]:
+    """Scan for stocks with low Bollinger Band Width (squeeze detection).
+
     Args:
-        exchange: Exchange name like KUCOIN, BINANCE, BYBIT, etc.
-        timeframe: One of 5m, 15m, 1h, 4h, 1D, 1W, 1M  
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
+        timeframe: One of 5m, 15m, 1h, 4h, 1D, 1W, 1M
         bbw_threshold: Maximum BBW value to filter (default 0.04)
         limit: Number of rows to return (max 100)
     """
-    exchange = sanitize_exchange(exchange, "KUCOIN")
+    exchange = sanitize_exchange(exchange, "nasdaq")
     timeframe = sanitize_timeframe(timeframe, "4h")
     limit = max(1, min(limit, 100))
     
@@ -336,16 +338,16 @@ def bollinger_scan(exchange: str = "KUCOIN", timeframe: str = "4h", bbw_threshol
 
 
 @mcp.tool()
-def rating_filter(exchange: str = "KUCOIN", timeframe: str = "5m", rating: int = 2, limit: int = 25) -> list[dict]:
-    """Filter coins by Bollinger Band rating.
-    
+def rating_filter(exchange: str = "NASDAQ", timeframe: str = "1D", rating: int = 2, limit: int = 25) -> list[dict]:
+    """Filter stocks by Bollinger Band rating.
+
     Args:
-        exchange: Exchange name like KUCOIN, BINANCE, BYBIT, etc.
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
         timeframe: One of 5m, 15m, 1h, 4h, 1D, 1W, 1M
         rating: BB rating (-3 to +3): -3=Strong Sell, -2=Sell, -1=Weak Sell, 1=Weak Buy, 2=Buy, 3=Strong Buy
         limit: Number of rows to return (max 50)
     """
-    exchange = sanitize_exchange(exchange, "KUCOIN")
+    exchange = sanitize_exchange(exchange, "nasdaq")
     timeframe = sanitize_timeframe(timeframe, "5m")
     rating = max(-3, min(3, rating))
     limit = max(1, min(limit, 50))
@@ -359,23 +361,23 @@ def rating_filter(exchange: str = "KUCOIN", timeframe: str = "5m", rating: int =
     } for row in rows]
 
 @mcp.tool()
-def coin_analysis(
+def stock_analysis(
     symbol: str,
-    exchange: str = "KUCOIN",
-    timeframe: str = "15m"
+    exchange: str = "NASDAQ",
+    timeframe: str = "1D"
 ) -> dict:
-    """Get detailed analysis for a specific coin on specified exchange and timeframe.
-    
+    """Get detailed analysis for a specific stock on specified exchange and timeframe.
+
     Args:
-        symbol: Coin symbol (e.g., "ACEUSDT", "BTCUSDT")
-        exchange: Exchange name (BINANCE, KUCOIN, etc.) 
+        symbol: Stock symbol (e.g., "AAPL", "MSFT", "GOOGL")
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
         timeframe: Time interval (5m, 15m, 1h, 4h, 1D, 1W, 1M)
-    
+
     Returns:
-        Detailed coin analysis with all indicators and metrics
+        Detailed stock analysis with all indicators and metrics
     """
     try:
-        exchange = sanitize_exchange(exchange, "KUCOIN")
+        exchange = sanitize_exchange(exchange, "nasdaq")
         timeframe = sanitize_timeframe(timeframe, "15m")
         
         # Format symbol with exchange prefix
@@ -384,7 +386,7 @@ def coin_analysis(
         else:
             full_symbol = symbol.upper()
         
-        screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+        screener = EXCHANGE_SCREENER.get(exchange, "america")
         
         try:
             analysis = get_multiple_analysis(
@@ -420,7 +422,36 @@ def coin_analysis(
             adx = indicators.get("ADX", 0)
             stoch_k = indicators.get("Stoch.K", 0)
             stoch_d = indicators.get("Stoch.D", 0)
-            
+
+            # Moving Averages - SMA
+            sma20 = indicators.get("SMA20", 0)
+            sma50 = indicators.get("SMA50", 0)
+            sma100 = indicators.get("SMA100", 0)
+            sma200 = indicators.get("SMA200", 0)
+
+            # Moving Averages - EMA
+            ema20 = indicators.get("EMA20", 0)
+            ema50 = indicators.get("EMA50", 0)
+            ema100 = indicators.get("EMA100", 0)
+            ema200 = indicators.get("EMA200", 0)
+
+            # Pivot Points (Classic)
+            pivot_middle = indicators.get("Pivot.M.Classic.Middle", 0)
+            pivot_r1 = indicators.get("Pivot.M.Classic.R1", 0)
+            pivot_r2 = indicators.get("Pivot.M.Classic.R2", 0)
+            pivot_r3 = indicators.get("Pivot.M.Classic.R3", 0)
+            pivot_s1 = indicators.get("Pivot.M.Classic.S1", 0)
+            pivot_s2 = indicators.get("Pivot.M.Classic.S2", 0)
+            pivot_s3 = indicators.get("Pivot.M.Classic.S3", 0)
+
+            # Fibonacci Pivot Points
+            fib_r1 = indicators.get("Pivot.M.Fibonacci.R1", 0)
+            fib_r2 = indicators.get("Pivot.M.Fibonacci.R2", 0)
+            fib_r3 = indicators.get("Pivot.M.Fibonacci.R3", 0)
+            fib_s1 = indicators.get("Pivot.M.Fibonacci.S1", 0)
+            fib_s2 = indicators.get("Pivot.M.Fibonacci.S2", 0)
+            fib_s3 = indicators.get("Pivot.M.Fibonacci.S3", 0)
+
             # Volume analysis
             volume = indicators.get("volume", 0)
             
@@ -455,26 +486,76 @@ def coin_analysis(
                                "Below Lower" if close_price < indicators.get("BB.lower", 0) else 
                                "Within Bands"
                 },
+                "moving_averages": {
+                    "sma": {
+                        "sma20": round(sma20, 4) if sma20 else None,
+                        "sma50": round(sma50, 4) if sma50 else None,
+                        "sma100": round(sma100, 4) if sma100 else None,
+                        "sma200": round(sma200, 4) if sma200 else None
+                    },
+                    "ema": {
+                        "ema20": round(ema20, 4) if ema20 else None,
+                        "ema50": round(ema50, 4) if ema50 else None,
+                        "ema100": round(ema100, 4) if ema100 else None,
+                        "ema200": round(ema200, 4) if ema200 else None
+                    },
+                    "price_vs_ma": {
+                        "above_sma20": close_price > sma20 if sma20 else None,
+                        "above_sma50": close_price > sma50 if sma50 else None,
+                        "above_sma100": close_price > sma100 if sma100 else None,
+                        "above_sma200": close_price > sma200 if sma200 else None
+                    }
+                },
+                "pivot_points": {
+                    "classic": {
+                        "r3": round(pivot_r3, 4) if pivot_r3 else None,
+                        "r2": round(pivot_r2, 4) if pivot_r2 else None,
+                        "r1": round(pivot_r1, 4) if pivot_r1 else None,
+                        "pivot": round(pivot_middle, 4) if pivot_middle else None,
+                        "s1": round(pivot_s1, 4) if pivot_s1 else None,
+                        "s2": round(pivot_s2, 4) if pivot_s2 else None,
+                        "s3": round(pivot_s3, 4) if pivot_s3 else None
+                    },
+                    "fibonacci": {
+                        "r3": round(fib_r3, 4) if fib_r3 else None,
+                        "r2": round(fib_r2, 4) if fib_r2 else None,
+                        "r1": round(fib_r1, 4) if fib_r1 else None,
+                        "s1": round(fib_s1, 4) if fib_s1 else None,
+                        "s2": round(fib_s2, 4) if fib_s2 else None,
+                        "s3": round(fib_s3, 4) if fib_s3 else None
+                    },
+                    "price_position": "Above R1" if close_price > pivot_r1 else
+                                     "Below S1" if close_price < pivot_s1 else
+                                     "Between S1-R1"
+                },
                 "technical_indicators": {
                     "rsi": round(indicators.get("RSI", 0), 2),
                     "rsi_signal": "Overbought" if indicators.get("RSI", 0) > 70 else
                                  "Oversold" if indicators.get("RSI", 0) < 30 else "Neutral",
-                    "sma20": round(indicators.get("SMA20", 0), 6),
-                    "ema50": round(indicators.get("EMA50", 0), 6),
-                    "ema200": round(indicators.get("EMA200", 0), 6),
-                    "macd": round(macd, 6),
-                    "macd_signal": round(macd_signal, 6),
-                    "macd_divergence": round(macd - macd_signal, 6),
+                    "macd": {
+                        "value": round(macd, 4) if macd else None,
+                        "signal": round(macd_signal, 4) if macd_signal else None,
+                        "histogram": round(macd - macd_signal, 4) if macd and macd_signal else None,
+                        "trend": "Bullish" if macd > macd_signal else "Bearish"
+                    },
                     "adx": round(adx, 2),
                     "trend_strength": "Strong" if adx > 25 else "Weak",
-                    "stoch_k": round(stoch_k, 2),
-                    "stoch_d": round(stoch_d, 2)
+                    "stochastic": {
+                        "k": round(stoch_k, 2),
+                        "d": round(stoch_d, 2),
+                        "signal": "Overbought" if stoch_k > 80 else "Oversold" if stoch_k < 20 else "Neutral"
+                    }
                 },
                 "market_sentiment": {
                     "overall_rating": metrics['rating'],
                     "buy_sell_signal": metrics['signal'],
                     "volatility": "High" if metrics['bbw'] > 0.05 else "Medium" if metrics['bbw'] > 0.02 else "Low",
-                    "momentum": "Bullish" if metrics['change'] > 0 else "Bearish"
+                    "momentum": "Bullish" if metrics['change'] > 0 else "Bearish",
+                    "trend_alignment": sum([
+                        1 if close_price > sma20 else -1,
+                        1 if close_price > sma50 else -1,
+                        1 if close_price > sma200 else -1
+                    ]) if all([sma20, sma50, sma200]) else 0
                 }
             }
             
@@ -494,30 +575,147 @@ def coin_analysis(
             "timeframe": timeframe
         }
 
+
+@mcp.tool()
+def batch_stock_analysis(
+    symbols: str,
+    exchange: str = "NASDAQ",
+    timeframe: str = "1D"
+) -> dict:
+    """Analyze multiple stocks at once with key technical indicators.
+
+    Args:
+        symbols: Comma-separated stock symbols (e.g., "AAPL,MSFT,GOOGL,AMZN")
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
+        timeframe: Time interval (5m, 15m, 1h, 4h, 1D, 1W, 1M)
+
+    Returns:
+        Analysis results for all requested stocks
+    """
+    try:
+        exchange = sanitize_exchange(exchange, "nasdaq")
+        timeframe = sanitize_timeframe(timeframe, "1D")
+
+        # Parse symbols
+        symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+        if not symbol_list:
+            return {"error": "No valid symbols provided"}
+
+        if len(symbol_list) > 20:
+            return {"error": "Maximum 20 symbols allowed per request"}
+
+        # Format symbols with exchange prefix
+        full_symbols = [f"{exchange.upper()}:{s}" if ":" not in s else s for s in symbol_list]
+
+        screener = EXCHANGE_SCREENER.get(exchange, "america")
+
+        try:
+            analysis = get_multiple_analysis(
+                screener=screener,
+                interval=timeframe,
+                symbols=full_symbols
+            )
+        except Exception as e:
+            return {"error": f"Analysis failed: {str(e)}"}
+
+        results = []
+        for full_symbol in full_symbols:
+            if full_symbol not in analysis or analysis[full_symbol] is None:
+                results.append({
+                    "symbol": full_symbol,
+                    "error": "No data available"
+                })
+                continue
+
+            data = analysis[full_symbol]
+            indicators = data.indicators
+
+            # Get key indicators
+            close_price = indicators.get("close", 0)
+            open_price = indicators.get("open", 0)
+            change_pct = ((close_price - open_price) / open_price * 100) if open_price else 0
+
+            # Moving Averages
+            sma20 = indicators.get("SMA20", 0)
+            sma50 = indicators.get("SMA50", 0)
+            sma200 = indicators.get("SMA200", 0)
+
+            # Technical indicators
+            rsi = indicators.get("RSI", 0)
+            macd = indicators.get("MACD.macd", 0)
+            macd_signal = indicators.get("MACD.signal", 0)
+
+            # Pivot Points
+            pivot_r1 = indicators.get("Pivot.M.Classic.R1", 0)
+            pivot_s1 = indicators.get("Pivot.M.Classic.S1", 0)
+
+            # Determine signals
+            ma_trend = sum([
+                1 if close_price > sma20 else -1,
+                1 if close_price > sma50 else -1,
+                1 if close_price > sma200 else -1
+            ]) if all([sma20, sma50, sma200]) else 0
+
+            results.append({
+                "symbol": full_symbol,
+                "price": round(close_price, 4) if close_price else None,
+                "change_percent": round(change_pct, 2),
+                "moving_averages": {
+                    "sma20": round(sma20, 4) if sma20 else None,
+                    "sma50": round(sma50, 4) if sma50 else None,
+                    "sma200": round(sma200, 4) if sma200 else None,
+                    "trend": "Bullish" if ma_trend > 0 else "Bearish" if ma_trend < 0 else "Mixed"
+                },
+                "indicators": {
+                    "rsi": round(rsi, 2) if rsi else None,
+                    "rsi_signal": "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral",
+                    "macd": round(macd, 4) if macd else None,
+                    "macd_signal": round(macd_signal, 4) if macd_signal else None,
+                    "macd_trend": "Bullish" if macd > macd_signal else "Bearish"
+                },
+                "support_resistance": {
+                    "resistance_r1": round(pivot_r1, 4) if pivot_r1 else None,
+                    "support_s1": round(pivot_s1, 4) if pivot_s1 else None,
+                    "position": "Near Resistance" if close_price > pivot_r1 * 0.98 else
+                               "Near Support" if close_price < pivot_s1 * 1.02 else "Mid-Range"
+                }
+            })
+
+        return {
+            "exchange": exchange,
+            "timeframe": timeframe,
+            "count": len(results),
+            "stocks": results
+        }
+
+    except Exception as e:
+        return {"error": f"Batch analysis failed: {str(e)}"}
+
+
 @mcp.tool()
 def consecutive_candles_scan(
-    exchange: str = "KUCOIN",
-    timeframe: str = "15m",
+    exchange: str = "NASDAQ",
+    timeframe: str = "1D",
     pattern_type: str = "bullish",
     candle_count: int = 3,
     min_growth: float = 2.0,
     limit: int = 20
 ) -> dict:
-    """Scan for coins with consecutive growing/shrinking candles pattern.
-    
+    """Scan for stocks with consecutive growing/shrinking candles pattern.
+
     Args:
-        exchange: Exchange name (BINANCE, KUCOIN, etc.)
-        timeframe: Time interval (5m, 15m, 1h, 4h)
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
+        timeframe: Time interval (5m, 15m, 1h, 4h, 1D)
         pattern_type: "bullish" (growing candles) or "bearish" (shrinking candles)
         candle_count: Number of consecutive candles to check (2-5)
         min_growth: Minimum growth percentage for each candle
         limit: Maximum number of results to return
-    
+
     Returns:
-        List of coins with consecutive candle patterns
+        List of stocks with consecutive candle patterns
     """
     try:
-        exchange = sanitize_exchange(exchange, "KUCOIN")
+        exchange = sanitize_exchange(exchange, "nasdaq")
         timeframe = sanitize_timeframe(timeframe, "15m")
         candle_count = max(2, min(5, candle_count))
         min_growth = max(0.5, min(20.0, min_growth))
@@ -537,7 +735,7 @@ def consecutive_candles_scan(
         
         # We need to get data from multiple timeframes to analyze candle progression
         # For now, we'll use current timeframe data and simulate pattern detection
-        screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+        screener = EXCHANGE_SCREENER.get(exchange, "america")
         
         try:
             analysis = get_multiple_analysis(
@@ -677,26 +875,26 @@ def consecutive_candles_scan(
 
 @mcp.tool()
 def advanced_candle_pattern(
-    exchange: str = "KUCOIN",
-    base_timeframe: str = "15m",
+    exchange: str = "NASDAQ",
+    base_timeframe: str = "1D",
     pattern_length: int = 3,
     min_size_increase: float = 10.0,
     limit: int = 15
 ) -> dict:
     """Advanced candle pattern analysis using multi-timeframe data.
-    
+
     Args:
-        exchange: Exchange name (BINANCE, KUCOIN, etc.)
-        base_timeframe: Base timeframe for analysis (5m, 15m, 1h, 4h)
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
+        base_timeframe: Base timeframe for analysis (5m, 15m, 1h, 4h, 1D)
         pattern_length: Number of consecutive periods to analyze (2-4)
         min_size_increase: Minimum percentage increase in candle size
         limit: Maximum number of results to return
-    
+
     Returns:
-        Coins with progressive candle size increase patterns
+        Stocks with progressive candle size increase patterns
     """
     try:
-        exchange = sanitize_exchange(exchange, "KUCOIN")
+        exchange = sanitize_exchange(exchange, "nasdaq")
         base_timeframe = sanitize_timeframe(base_timeframe, "15m")
         pattern_length = max(2, min(4, pattern_length))
         min_size_increase = max(5.0, min(50.0, min_size_increase))
@@ -736,7 +934,7 @@ def advanced_candle_pattern(
                 pass
         
         # Fallback: Use single timeframe with enhanced pattern detection
-        screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+        screener = EXCHANGE_SCREENER.get(exchange, "america")
         
         analysis = get_multiple_analysis(
             screener=screener,
@@ -886,14 +1084,16 @@ def _fetch_multi_timeframe_patterns(exchange: str, symbols: List[str], base_tf: 
         # Create query for OHLC data
         cols = [
             f"open|{tv_interval}",
-            f"close|{tv_interval}", 
+            f"close|{tv_interval}",
             f"high|{tv_interval}",
             f"low|{tv_interval}",
             f"volume|{tv_interval}",
             "RSI"
         ]
-        
-        q = Query().set_markets("crypto").select(*cols)
+
+        # Dynamically determine market based on exchange
+        market = get_market_for_exchange(exchange)
+        q = Query().set_markets(market).select(*cols)
         q = q.where(Column("exchange") == exchange.upper())
         q = q.limit(len(symbols))
         
@@ -950,27 +1150,8 @@ def _fetch_multi_timeframe_patterns(exchange: str, symbols: List[str], base_tf: 
 
 @mcp.resource("exchanges://list")
 def exchanges_list() -> str:
-    """List available exchanges from coinlist directory."""
-    try:
-        import os
-        # Get the directory where this module is located
-        current_dir = os.path.dirname(__file__)
-        coinlist_dir = os.path.join(current_dir, "coinlist")
-        
-        if os.path.exists(coinlist_dir):
-            exchanges = []
-            for filename in os.listdir(coinlist_dir):
-                if filename.endswith('.txt'):
-                    exchange_name = filename[:-4].upper()
-                    exchanges.append(exchange_name)
-            
-            if exchanges:
-                return f"Available exchanges: {', '.join(sorted(exchanges))}"
-        
-        # Fallback to static list
-        return "Common exchanges: KUCOIN, BINANCE, BYBIT, BITGET, OKX, COINBASE, GATEIO, HUOBI, BITFINEX, KRAKEN, BITSTAMP, BIST, NASDAQ"
-    except Exception:
-        return "Common exchanges: KUCOIN, BINANCE, BYBIT, BITGET, OKX, COINBASE, GATEIO, HUOBI, BITFINEX, KRAKEN, BITSTAMP, BIST, NASDAQ"
+    """List available stock exchanges."""
+    return "Available exchanges: NASDAQ (US), NYSE (US), HKEX (Hong Kong)"
 def main() -> None:
 	parser = argparse.ArgumentParser(description="TradingView Screener MCP server")
 	parser.add_argument("transport", choices=["stdio", "streamable-http"], default="stdio", nargs="?", help="Transport (default stdio)")
@@ -994,17 +1175,17 @@ def main() -> None:
 
 
 @mcp.tool()
-def volume_breakout_scanner(exchange: str = "KUCOIN", timeframe: str = "15m", volume_multiplier: float = 2.0, price_change_min: float = 3.0, limit: int = 25) -> list[dict]:
-	"""Detect coins with volume breakout + price breakout.
-	
+def volume_breakout_scanner(exchange: str = "NASDAQ", timeframe: str = "1D", volume_multiplier: float = 2.0, price_change_min: float = 3.0, limit: int = 25) -> list[dict]:
+	"""Detect stocks with volume breakout + price breakout.
+
 	Args:
-		exchange: Exchange name like KUCOIN, BINANCE, BYBIT, etc.
+		exchange: Exchange name (NASDAQ, NYSE, HKEX)
 		timeframe: One of 5m, 15m, 1h, 4h, 1D, 1W, 1M
 		volume_multiplier: How many times the volume should be above normal level (default 2.0)
 		price_change_min: Minimum price change percentage (default 3.0)
 		limit: Number of rows to return (max 50)
 	"""
-	exchange = sanitize_exchange(exchange, "KUCOIN")
+	exchange = sanitize_exchange(exchange, "nasdaq")
 	timeframe = sanitize_timeframe(timeframe, "15m")
 	volume_multiplier = max(1.5, min(10.0, volume_multiplier))
 	price_change_min = max(1.0, min(20.0, price_change_min))
@@ -1015,7 +1196,7 @@ def volume_breakout_scanner(exchange: str = "KUCOIN", timeframe: str = "15m", vo
 	if not symbols:
 		return []
 	
-	screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+	screener = EXCHANGE_SCREENER.get(exchange, "america")
 	volume_breakouts = []
 	
 	# Process in batches
@@ -1094,21 +1275,21 @@ def volume_breakout_scanner(exchange: str = "KUCOIN", timeframe: str = "15m", vo
 
 
 @mcp.tool()
-def volume_confirmation_analysis(symbol: str, exchange: str = "KUCOIN", timeframe: str = "15m") -> dict:
-	"""Detailed volume confirmation analysis for a specific coin.
-	
+def volume_confirmation_analysis(symbol: str, exchange: str = "NASDAQ", timeframe: str = "1D") -> dict:
+	"""Detailed volume confirmation analysis for a specific stock.
+
 	Args:
-		symbol: Coin symbol (e.g., BTCUSDT)
-		exchange: Exchange name
+		symbol: Stock symbol (e.g., AAPL, MSFT)
+		exchange: Exchange name (NASDAQ, NYSE, HKEX)
 		timeframe: Time frame for analysis
 	"""
-	exchange = sanitize_exchange(exchange, "KUCOIN")
-	timeframe = sanitize_timeframe(timeframe, "15m")
+	exchange = sanitize_exchange(exchange, "nasdaq")
+	timeframe = sanitize_timeframe(timeframe, "1D")
+
+	# Stock symbols don't need USDT suffix
+	symbol = symbol.upper()
 	
-	if not symbol.upper().endswith('USDT'):
-		symbol = symbol.upper() + 'USDT'
-	
-	screener = EXCHANGE_SCREENER.get(exchange, "crypto")
+	screener = EXCHANGE_SCREENER.get(exchange, "america")
 	
 	try:
 		analysis = get_multiple_analysis(screener=screener, interval=timeframe, symbols=[symbol])
@@ -1214,17 +1395,17 @@ def volume_confirmation_analysis(symbol: str, exchange: str = "KUCOIN", timefram
 
 
 @mcp.tool()
-def smart_volume_scanner(exchange: str = "KUCOIN", min_volume_ratio: float = 2.0, min_price_change: float = 2.0, rsi_range: str = "any", limit: int = 20) -> list[dict]:
+def smart_volume_scanner(exchange: str = "NASDAQ", min_volume_ratio: float = 2.0, min_price_change: float = 2.0, rsi_range: str = "any", limit: int = 20) -> list[dict]:
 	"""Smart volume + technical analysis combination scanner.
-	
+
 	Args:
-		exchange: Exchange name
+		exchange: Exchange name (NASDAQ, NYSE, HKEX)
 		min_volume_ratio: Minimum volume multiplier (default 2.0)
 		min_price_change: Minimum price change percentage (default 2.0)
 		rsi_range: "oversold" (<30), "overbought" (>70), "neutral" (30-70), "any"
 		limit: Number of results (max 30)
 	"""
-	exchange = sanitize_exchange(exchange, "KUCOIN")
+	exchange = sanitize_exchange(exchange, "nasdaq")
 	min_volume_ratio = max(1.2, min(10.0, min_volume_ratio))
 	min_price_change = max(0.5, min(20.0, min_price_change))
 	limit = max(1, min(limit, 30))

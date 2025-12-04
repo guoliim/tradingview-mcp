@@ -3,31 +3,19 @@ import os
 from typing import Set
 
 ALLOWED_TIMEFRAMES: Set[str] = {"5m", "15m", "1h", "4h", "1D", "1W", "1M"}
+
+# Simplified to support only US and Hong Kong stock markets
 EXCHANGE_SCREENER = {
-    "all": "crypto",
-    "huobi": "crypto",
-    "kucoin": "crypto",
-    "coinbase": "crypto",
-    "gateio": "crypto",
-    "binance": "crypto",
-    "bitfinex": "crypto",
-    "bitget": "crypto",
-    "bybit": "crypto",
-    "okx": "crypto",
-    "bist": "turkey",
-    "nasdaq": "america",
-    # Malaysia Stock Market Support
-    "bursa": "malaysia",
-    "myx": "malaysia",
-    "klse": "malaysia",
-    "ace": "malaysia",      # ACE Market (Access, Certainty, Efficiency)
-    "leap": "malaysia",     # LEAP Market (Leading Entrepreneur Accelerator Platform)
-    # Hong Kong Stock Market Support
+    "nasdaq": "america",    # NASDAQ Stock Exchange
+    "nyse": "america",      # New York Stock Exchange
     "hkex": "hongkong",     # Hong Kong Exchange
-    "hk": "hongkong",       # Hong Kong (alternate)
-    "hsi": "hongkong",      # Hang Seng Index constituents
-    "nyse": "america",
+    "hk": "hongkong",       # Hong Kong (alternate alias)
 }
+
+
+def get_market_for_exchange(exchange: str) -> str:
+    """Get the TradingView market type for a given exchange."""
+    return EXCHANGE_SCREENER.get(exchange.lower(), "america")
 
 # Get absolute path to coinlist directory relative to this module
 # This file is at: src/tradingview_mcp/core/utils/validators.py
@@ -46,7 +34,7 @@ def sanitize_timeframe(tf: str, default: str = "5m") -> str:
     return tfs if tfs in ALLOWED_TIMEFRAMES else default
 
 
-def sanitize_exchange(ex: str, default: str = "kucoin") -> str:
+def sanitize_exchange(ex: str, default: str = "nasdaq") -> str:
     if not ex:
         return default
     exs = ex.strip().lower()
