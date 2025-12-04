@@ -13,6 +13,7 @@ from tradingview_mcp.core.utils.validators import sanitize_timeframe, sanitize_e
 
 # Import authentication module
 from tradingview_mcp.core.services.auth import get_auth_manager, get_cookies
+from tradingview_mcp.core.services.watchlist import get_watchlist_manager
 
 try:
     from tradingview_ta import TA_Handler, get_multiple_analysis
@@ -330,6 +331,130 @@ def tv_auth_refresh() -> dict:
     auth = get_auth_manager()
     auth.refresh_from_environment()
     return auth.get_status()
+
+
+@mcp.tool()
+def tv_get_watchlists() -> dict:
+    """Get all user watchlists from TradingView account.
+
+    Requires TV_SESSION_ID environment variable to be set.
+    Returns list of watchlists with their IDs, names, and symbol counts.
+
+    Example response:
+        {
+            "authenticated": true,
+            "count": 2,
+            "watchlists": [
+                {"id": "abc123", "name": "My Stocks", "symbols_count": 15},
+                {"id": "xyz789", "name": "Tech Watch", "symbols_count": 8}
+            ]
+        }
+    """
+    wm = get_watchlist_manager()
+    return wm.get_watchlists()
+
+
+@mcp.tool()
+def tv_get_watchlist_symbols(watchlist_id: str) -> dict:
+    """Get symbols from a specific TradingView watchlist.
+
+    Args:
+        watchlist_id: The watchlist ID (from tv_get_watchlists or TradingView URL)
+
+    Returns:
+        List of symbols in the watchlist with count.
+
+    Example:
+        tv_get_watchlist_symbols("abc123")
+        -> {"symbols": ["NASDAQ:AAPL", "NYSE:IBM", ...], "count": 15}
+    """
+    wm = get_watchlist_manager()
+    return wm.get_watchlist_symbols(watchlist_id)
+
+
+@mcp.tool()
+def tv_analyze_watchlist(watchlist_id: str, timeframe: str = "1D") -> dict:
+    """Analyze all stocks in a TradingView watchlist with technical indicators.
+
+    Fetches the watchlist symbols and performs batch technical analysis.
+
+    Args:
+        watchlist_id: The watchlist ID to analyze
+        timeframe: Timeframe for analysis (5m, 15m, 1h, 4h, 1D, 1W, 1M)
+
+    Returns:
+        Technical analysis results for all symbols in the watchlist.
+    """
+    wm = get_watchlist_manager()
+    result = wm.get_watchlist_symbols(watchlist_id)
+
+    if "error" in result:
+        return result
+
+    symbols = result.get("symbols", [])
+    if not symbols:
+        return {
+            "error": "Watchlist is empty or not found",
+            "watchlist_id": watchlist_id,
+        }
+
+    # Limit to 20 symbols for batch analysis
+    symbols_to_analyze = symbols[:20]
+
+    # Extract just the symbol part (remove exchange prefix for batch_stock_analysis)
+    clean_symbols = []
+    for sym in symbols_to_analyze:
+        if ":" in sym:
+            clean_symbols.append(sym.split(":")[-1])
+        else:
+            clean_symbols.append(sym)
+
+    # Use batch analysis
+    analysis_result = batch_stock_analysis(
+        symbols=",".join(clean_symbols),
+        timeframe=timeframe,
+    )
+
+    return {
+        "watchlist_id": watchlist_id,
+        "watchlist_name": result.get("name", "Unknown"),
+        "total_symbols": len(symbols),
+        "analyzed_count": len(symbols_to_analyze),
+        "timeframe": timeframe,
+        "analysis": analysis_result,
+    }
+
+
+@mcp.tool()
+def tv_add_to_watchlist(watchlist_id: str, symbols: str) -> dict:
+    """Add symbols to a TradingView watchlist.
+
+    Args:
+        watchlist_id: Target watchlist ID
+        symbols: Comma-separated symbols (e.g., "AAPL,MSFT,GOOGL" or "NASDAQ:AAPL,NYSE:IBM")
+
+    Returns:
+        Operation result with success status.
+    """
+    wm = get_watchlist_manager()
+
+    # Parse symbols
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        return {"error": "No valid symbols provided"}
+
+    return wm.add_to_watchlist(watchlist_id, symbol_list)
+
+
+@mcp.tool()
+def tv_user_info() -> dict:
+    """Get current TradingView user information.
+
+    Returns authenticated user's username and subscription plan.
+    Requires TV_SESSION_ID to be set.
+    """
+    wm = get_watchlist_manager()
+    return wm.get_user_info()
 
 
 @mcp.tool()

@@ -172,11 +172,20 @@ uv sync
 | `consecutive_candles_scan` | Find candlestick patterns | 3+ consecutive green candles |
 | `advanced_candle_pattern` | Multi-timeframe pattern analysis | Complex pattern detection |
 
-### 🔐 Authentication
+### 🔐 Authentication & User Data
 | Tool | Description |
 |------|-------------|
 | `tv_auth_status` | Check authentication status and premium features availability |
 | `tv_auth_refresh` | Refresh authentication after updating TV_SESSION_ID |
+| `tv_user_info` | Get current user information (username, subscription plan) |
+
+### 📋 Watchlist Management (Requires Login)
+| Tool | Description |
+|------|-------------|
+| `tv_get_watchlists` | Get all user watchlists from TradingView account |
+| `tv_get_watchlist_symbols` | Get symbols from a specific watchlist |
+| `tv_analyze_watchlist` | Analyze all stocks in a watchlist with technical indicators |
+| `tv_add_to_watchlist` | Add symbols to a TradingView watchlist |
 
 ### 📋 Information
 | Tool | Description |

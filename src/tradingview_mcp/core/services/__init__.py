@@ -3,6 +3,7 @@ from .auth import SecureAuthManager, get_auth_manager, get_cookies
 from .indicators import compute_metrics
 from .coinlist import load_symbols
 from .screener_provider import fetch_screener_indicators, fetch_screener_multi_changes
+from .watchlist import WatchlistManager, get_watchlist_manager
 
 __all__ = [
     "SecureAuthManager",
@@ -12,4 +13,6 @@ __all__ = [
     "load_symbols",
     "fetch_screener_indicators",
     "fetch_screener_multi_changes",
+    "WatchlistManager",
+    "get_watchlist_manager",
 ]
