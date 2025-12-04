@@ -27,20 +27,20 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
    ```bash
    # macOS (Homebrew)
    brew install uv
-   
+
    # Windows
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-   
+
    # macOS/Linux (Direct)
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
 2. **Add to Claude Desktop Configuration:**
-   
+
    **Config Path:**
    - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
    - **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-   
+
    ```json
    {
      "mcpServers": {
@@ -57,6 +57,56 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
    ```
 
 3. **Restart Claude Desktop** - The server will be automatically available!
+
+### 🔐 Enable Premium Features (Real-time Data)
+
+To unlock real-time data and premium features, configure your TradingView session:
+
+**Step 1: Get your Session ID**
+1. Login to [TradingView](https://www.tradingview.com) in your browser
+2. Open DevTools: `F12` → `Application` → `Cookies` → `tradingview.com`
+3. Copy the `sessionid` cookie value
+
+**Step 2: Configure Environment Variable**
+
+Update your Claude Desktop configuration with the session ID:
+
+```json
+{
+  "mcpServers": {
+    "tradingview-mcp": {
+      "command": "uv",
+      "args": [
+        "tool", "run", "--from",
+        "git+https://github.com/atilaahmettaner/tradingview-mcp.git",
+        "tradingview-mcp"
+      ],
+      "env": {
+        "TV_SESSION_ID": "your_session_id_here"
+      }
+    }
+  }
+}
+```
+
+**Or set via command line:**
+```bash
+# Linux/macOS
+export TV_SESSION_ID="your_session_id_here"
+
+# Windows PowerShell
+$env:TV_SESSION_ID="your_session_id_here"
+```
+
+| Mode | Data Latency | Rate Limits |
+|------|--------------|-------------|
+| **Public** (no session) | 15 min delay | Standard |
+| **Premium** (with session) | Real-time | Higher |
+
+**Security Notes:**
+- Session ID is only stored in memory, never written to disk
+- No passwords or sensitive credentials are ever stored
+- Session expires after 1-7 days, simply update the environment variable
 
 📋 **For detailed Windows instructions, see [INSTALLATION.md](INSTALLATION.md)**
 
@@ -121,6 +171,12 @@ uv sync
 | `coin_analysis` | Complete technical analysis | Analyze BTC with all indicators |
 | `consecutive_candles_scan` | Find candlestick patterns | 3+ consecutive green candles |
 | `advanced_candle_pattern` | Multi-timeframe pattern analysis | Complex pattern detection |
+
+### 🔐 Authentication
+| Tool | Description |
+|------|-------------|
+| `tv_auth_status` | Check authentication status and premium features availability |
+| `tv_auth_refresh` | Refresh authentication after updating TV_SESSION_ID |
 
 ### 📋 Information
 | Tool | Description |

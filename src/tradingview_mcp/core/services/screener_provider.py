@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Dict, Any, Optional
 from ..utils.validators import get_market_for_exchange
+from .auth import get_cookies as get_auth_cookies
 
 
 def _tf_to_tv_resolution(tf: Optional[str]) -> Optional[str]:
@@ -27,6 +28,7 @@ def fetch_screener_indicators(
     limit: Optional[int] = None,
     timeframe: Optional[str] = None,
     cookies=None,
+    use_auth: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     Fetch indicator columns via TradingView-Screener.
@@ -39,7 +41,8 @@ def fetch_screener_indicators(
       symbols: list of 'EXCHANGE:SYMBOL' tickers. If empty/None, scans by exchange.
       limit: optional limit of rows to return.
       timeframe: optional timeframe like '5m', '15m', '1h', '4h', '1D', '1W', '1M'.
-      cookies: optional requests cookies for live data.
+      cookies: optional requests cookies for live data. If None and use_auth=True, will use authenticated cookies.
+      use_auth: whether to use authenticated cookies when cookies is None. Default True.
 
     Returns: List[{ 'symbol': 'EXCHANGE:PAIR', 'indicators': {...} }]
     """
@@ -48,6 +51,10 @@ def fetch_screener_indicators(
         from tradingview_screener.column import Column
     except Exception as e:
         raise ImportError("tradingview-screener is not installed. Please add it to requirements.txt and install.") from e
+
+    # Use authenticated cookies if available and not explicitly provided
+    if cookies is None and use_auth:
+        cookies = get_auth_cookies()
 
     # Dynamically determine market based on exchange
     market = get_market_for_exchange(exchange)
@@ -104,10 +111,15 @@ def fetch_screener_multi_changes(
     base_timeframe: str = '4h',
     limit: Optional[int] = None,
     cookies=None,
+    use_auth: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     Fetch multi-timeframe open/close to compute percentage changes per timeframe,
     and also include base timeframe indicators needed for BB metrics.
+
+    Args:
+      cookies: optional requests cookies for live data. If None and use_auth=True, will use authenticated cookies.
+      use_auth: whether to use authenticated cookies when cookies is None. Default True.
 
     Returns rows like:
       {
@@ -121,6 +133,10 @@ def fetch_screener_multi_changes(
         from tradingview_screener.column import Column
     except Exception as e:
         raise ImportError("tradingview-screener is not installed. Please add it to requirements.txt and install.") from e
+
+    # Use authenticated cookies if available and not explicitly provided
+    if cookies is None and use_auth:
+        cookies = get_auth_cookies()
 
     # Default timeframe set
     if not timeframes:
