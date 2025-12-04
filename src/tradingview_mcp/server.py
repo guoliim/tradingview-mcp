@@ -422,7 +422,36 @@ def stock_analysis(
             adx = indicators.get("ADX", 0)
             stoch_k = indicators.get("Stoch.K", 0)
             stoch_d = indicators.get("Stoch.D", 0)
-            
+
+            # Moving Averages - SMA
+            sma20 = indicators.get("SMA20", 0)
+            sma50 = indicators.get("SMA50", 0)
+            sma100 = indicators.get("SMA100", 0)
+            sma200 = indicators.get("SMA200", 0)
+
+            # Moving Averages - EMA
+            ema20 = indicators.get("EMA20", 0)
+            ema50 = indicators.get("EMA50", 0)
+            ema100 = indicators.get("EMA100", 0)
+            ema200 = indicators.get("EMA200", 0)
+
+            # Pivot Points (Classic)
+            pivot_middle = indicators.get("Pivot.M.Classic.Middle", 0)
+            pivot_r1 = indicators.get("Pivot.M.Classic.R1", 0)
+            pivot_r2 = indicators.get("Pivot.M.Classic.R2", 0)
+            pivot_r3 = indicators.get("Pivot.M.Classic.R3", 0)
+            pivot_s1 = indicators.get("Pivot.M.Classic.S1", 0)
+            pivot_s2 = indicators.get("Pivot.M.Classic.S2", 0)
+            pivot_s3 = indicators.get("Pivot.M.Classic.S3", 0)
+
+            # Fibonacci Pivot Points
+            fib_r1 = indicators.get("Pivot.M.Fibonacci.R1", 0)
+            fib_r2 = indicators.get("Pivot.M.Fibonacci.R2", 0)
+            fib_r3 = indicators.get("Pivot.M.Fibonacci.R3", 0)
+            fib_s1 = indicators.get("Pivot.M.Fibonacci.S1", 0)
+            fib_s2 = indicators.get("Pivot.M.Fibonacci.S2", 0)
+            fib_s3 = indicators.get("Pivot.M.Fibonacci.S3", 0)
+
             # Volume analysis
             volume = indicators.get("volume", 0)
             
@@ -457,26 +486,76 @@ def stock_analysis(
                                "Below Lower" if close_price < indicators.get("BB.lower", 0) else 
                                "Within Bands"
                 },
+                "moving_averages": {
+                    "sma": {
+                        "sma20": round(sma20, 4) if sma20 else None,
+                        "sma50": round(sma50, 4) if sma50 else None,
+                        "sma100": round(sma100, 4) if sma100 else None,
+                        "sma200": round(sma200, 4) if sma200 else None
+                    },
+                    "ema": {
+                        "ema20": round(ema20, 4) if ema20 else None,
+                        "ema50": round(ema50, 4) if ema50 else None,
+                        "ema100": round(ema100, 4) if ema100 else None,
+                        "ema200": round(ema200, 4) if ema200 else None
+                    },
+                    "price_vs_ma": {
+                        "above_sma20": close_price > sma20 if sma20 else None,
+                        "above_sma50": close_price > sma50 if sma50 else None,
+                        "above_sma100": close_price > sma100 if sma100 else None,
+                        "above_sma200": close_price > sma200 if sma200 else None
+                    }
+                },
+                "pivot_points": {
+                    "classic": {
+                        "r3": round(pivot_r3, 4) if pivot_r3 else None,
+                        "r2": round(pivot_r2, 4) if pivot_r2 else None,
+                        "r1": round(pivot_r1, 4) if pivot_r1 else None,
+                        "pivot": round(pivot_middle, 4) if pivot_middle else None,
+                        "s1": round(pivot_s1, 4) if pivot_s1 else None,
+                        "s2": round(pivot_s2, 4) if pivot_s2 else None,
+                        "s3": round(pivot_s3, 4) if pivot_s3 else None
+                    },
+                    "fibonacci": {
+                        "r3": round(fib_r3, 4) if fib_r3 else None,
+                        "r2": round(fib_r2, 4) if fib_r2 else None,
+                        "r1": round(fib_r1, 4) if fib_r1 else None,
+                        "s1": round(fib_s1, 4) if fib_s1 else None,
+                        "s2": round(fib_s2, 4) if fib_s2 else None,
+                        "s3": round(fib_s3, 4) if fib_s3 else None
+                    },
+                    "price_position": "Above R1" if close_price > pivot_r1 else
+                                     "Below S1" if close_price < pivot_s1 else
+                                     "Between S1-R1"
+                },
                 "technical_indicators": {
                     "rsi": round(indicators.get("RSI", 0), 2),
                     "rsi_signal": "Overbought" if indicators.get("RSI", 0) > 70 else
                                  "Oversold" if indicators.get("RSI", 0) < 30 else "Neutral",
-                    "sma20": round(indicators.get("SMA20", 0), 6),
-                    "ema50": round(indicators.get("EMA50", 0), 6),
-                    "ema200": round(indicators.get("EMA200", 0), 6),
-                    "macd": round(macd, 6),
-                    "macd_signal": round(macd_signal, 6),
-                    "macd_divergence": round(macd - macd_signal, 6),
+                    "macd": {
+                        "value": round(macd, 4) if macd else None,
+                        "signal": round(macd_signal, 4) if macd_signal else None,
+                        "histogram": round(macd - macd_signal, 4) if macd and macd_signal else None,
+                        "trend": "Bullish" if macd > macd_signal else "Bearish"
+                    },
                     "adx": round(adx, 2),
                     "trend_strength": "Strong" if adx > 25 else "Weak",
-                    "stoch_k": round(stoch_k, 2),
-                    "stoch_d": round(stoch_d, 2)
+                    "stochastic": {
+                        "k": round(stoch_k, 2),
+                        "d": round(stoch_d, 2),
+                        "signal": "Overbought" if stoch_k > 80 else "Oversold" if stoch_k < 20 else "Neutral"
+                    }
                 },
                 "market_sentiment": {
                     "overall_rating": metrics['rating'],
                     "buy_sell_signal": metrics['signal'],
                     "volatility": "High" if metrics['bbw'] > 0.05 else "Medium" if metrics['bbw'] > 0.02 else "Low",
-                    "momentum": "Bullish" if metrics['change'] > 0 else "Bearish"
+                    "momentum": "Bullish" if metrics['change'] > 0 else "Bearish",
+                    "trend_alignment": sum([
+                        1 if close_price > sma20 else -1,
+                        1 if close_price > sma50 else -1,
+                        1 if close_price > sma200 else -1
+                    ]) if all([sma20, sma50, sma200]) else 0
                 }
             }
             
@@ -495,6 +574,123 @@ def stock_analysis(
             "exchange": exchange,
             "timeframe": timeframe
         }
+
+
+@mcp.tool()
+def batch_stock_analysis(
+    symbols: str,
+    exchange: str = "NASDAQ",
+    timeframe: str = "1D"
+) -> dict:
+    """Analyze multiple stocks at once with key technical indicators.
+
+    Args:
+        symbols: Comma-separated stock symbols (e.g., "AAPL,MSFT,GOOGL,AMZN")
+        exchange: Exchange name (NASDAQ, NYSE, HKEX)
+        timeframe: Time interval (5m, 15m, 1h, 4h, 1D, 1W, 1M)
+
+    Returns:
+        Analysis results for all requested stocks
+    """
+    try:
+        exchange = sanitize_exchange(exchange, "nasdaq")
+        timeframe = sanitize_timeframe(timeframe, "1D")
+
+        # Parse symbols
+        symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+        if not symbol_list:
+            return {"error": "No valid symbols provided"}
+
+        if len(symbol_list) > 20:
+            return {"error": "Maximum 20 symbols allowed per request"}
+
+        # Format symbols with exchange prefix
+        full_symbols = [f"{exchange.upper()}:{s}" if ":" not in s else s for s in symbol_list]
+
+        screener = EXCHANGE_SCREENER.get(exchange, "america")
+
+        try:
+            analysis = get_multiple_analysis(
+                screener=screener,
+                interval=timeframe,
+                symbols=full_symbols
+            )
+        except Exception as e:
+            return {"error": f"Analysis failed: {str(e)}"}
+
+        results = []
+        for full_symbol in full_symbols:
+            if full_symbol not in analysis or analysis[full_symbol] is None:
+                results.append({
+                    "symbol": full_symbol,
+                    "error": "No data available"
+                })
+                continue
+
+            data = analysis[full_symbol]
+            indicators = data.indicators
+
+            # Get key indicators
+            close_price = indicators.get("close", 0)
+            open_price = indicators.get("open", 0)
+            change_pct = ((close_price - open_price) / open_price * 100) if open_price else 0
+
+            # Moving Averages
+            sma20 = indicators.get("SMA20", 0)
+            sma50 = indicators.get("SMA50", 0)
+            sma200 = indicators.get("SMA200", 0)
+
+            # Technical indicators
+            rsi = indicators.get("RSI", 0)
+            macd = indicators.get("MACD.macd", 0)
+            macd_signal = indicators.get("MACD.signal", 0)
+
+            # Pivot Points
+            pivot_r1 = indicators.get("Pivot.M.Classic.R1", 0)
+            pivot_s1 = indicators.get("Pivot.M.Classic.S1", 0)
+
+            # Determine signals
+            ma_trend = sum([
+                1 if close_price > sma20 else -1,
+                1 if close_price > sma50 else -1,
+                1 if close_price > sma200 else -1
+            ]) if all([sma20, sma50, sma200]) else 0
+
+            results.append({
+                "symbol": full_symbol,
+                "price": round(close_price, 4) if close_price else None,
+                "change_percent": round(change_pct, 2),
+                "moving_averages": {
+                    "sma20": round(sma20, 4) if sma20 else None,
+                    "sma50": round(sma50, 4) if sma50 else None,
+                    "sma200": round(sma200, 4) if sma200 else None,
+                    "trend": "Bullish" if ma_trend > 0 else "Bearish" if ma_trend < 0 else "Mixed"
+                },
+                "indicators": {
+                    "rsi": round(rsi, 2) if rsi else None,
+                    "rsi_signal": "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral",
+                    "macd": round(macd, 4) if macd else None,
+                    "macd_signal": round(macd_signal, 4) if macd_signal else None,
+                    "macd_trend": "Bullish" if macd > macd_signal else "Bearish"
+                },
+                "support_resistance": {
+                    "resistance_r1": round(pivot_r1, 4) if pivot_r1 else None,
+                    "support_s1": round(pivot_s1, 4) if pivot_s1 else None,
+                    "position": "Near Resistance" if close_price > pivot_r1 * 0.98 else
+                               "Near Support" if close_price < pivot_s1 * 1.02 else "Mid-Range"
+                }
+            })
+
+        return {
+            "exchange": exchange,
+            "timeframe": timeframe,
+            "count": len(results),
+            "stocks": results
+        }
+
+    except Exception as e:
+        return {"error": f"Batch analysis failed: {str(e)}"}
+
 
 @mcp.tool()
 def consecutive_candles_scan(
