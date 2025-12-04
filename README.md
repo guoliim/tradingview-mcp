@@ -58,64 +58,6 @@ https://github-production-user-asset-6210df.s3.amazonaws.com/67838093/478689497-
 
 3. **Restart Claude Desktop** - The server will be automatically available!
 
-### 🔐 Enable Premium Features (Optional)
-
-To unlock premium features, configure your TradingView session cookies:
-
-**Step 1: Get Session Cookies**
-
-1. Login to [TradingView](https://www.tradingview.com) in your browser
-2. Open DevTools: `F12` → `Application` → `Cookies` → `tradingview.com`
-3. Copy **BOTH** cookie values:
-   - `sessionid` - Your session identifier
-   - `sessionid_sign` - Session signature (required)
-
-**Step 2: Configure Environment Variables**
-
-Update your Claude Desktop configuration with both values:
-
-```json
-{
-  "mcpServers": {
-    "tradingview-mcp": {
-      "command": "uv",
-      "args": [
-        "tool", "run", "--from",
-        "git+https://github.com/atilaahmettaner/tradingview-mcp.git",
-        "tradingview-mcp"
-      ],
-      "env": {
-        "TV_SESSION_ID": "your_sessionid_value",
-        "TV_SESSION_ID_SIGN": "your_sessionid_sign_value"
-      }
-    }
-  }
-}
-```
-
-**Or set via command line:**
-```bash
-# Linux/macOS
-export TV_SESSION_ID="your_sessionid_value"
-export TV_SESSION_ID_SIGN="your_sessionid_sign_value"
-
-# Windows PowerShell
-$env:TV_SESSION_ID="your_sessionid_value"
-$env:TV_SESSION_ID_SIGN="your_sessionid_sign_value"
-```
-
-> ⚠️ **Important**: Both `TV_SESSION_ID` and `TV_SESSION_ID_SIGN` are required. TradingView uses dual-cookie authentication for security.
-
-| Mode | Data Latency | Rate Limits |
-|------|--------------|-------------|
-| **Public** (no session) | 15 min delay | Standard |
-| **Premium** (with session) | Real-time | Higher |
-
-**Security Notes:**
-- Session ID is only stored in memory, never written to disk
-- No passwords or sensitive credentials are ever stored
-- Session expires after 1-7 days, simply update the environment variable
-
 📋 **For detailed Windows instructions, see [INSTALLATION.md](INSTALLATION.md)**
 
 ### Option 2: Manual Installation
@@ -181,21 +123,6 @@ uv sync
 | `advanced_candle_pattern` | Multi-timeframe pattern analysis | Complex pattern detection |
 | `calculate_support_resistance` | Calculate S/R levels using Pivot Points, Fibonacci, MAs | Support/resistance for AAPL across 1D,1W,1M |
 | `batch_support_resistance_analysis` | Calculate S/R for multiple symbols | Batch S/R analysis for portfolio |
-
-### 🔐 Authentication & User Data
-| Tool | Description |
-|------|-------------|
-| `tv_auth_status` | Check authentication status and premium features availability |
-| `tv_auth_refresh` | Refresh authentication after updating TV_SESSION_ID |
-| `tv_user_info` | Get current user information (username, subscription plan) |
-
-### 📋 Watchlist Management (Requires Login)
-| Tool | Description |
-|------|-------------|
-| `tv_get_watchlists` | Get all user watchlists from TradingView account |
-| `tv_get_watchlist_symbols` | Get symbols from a specific watchlist |
-| `tv_analyze_watchlist` | Analyze all stocks in a watchlist with technical indicators |
-| `tv_add_to_watchlist` | Add symbols to a TradingView watchlist |
 
 ### 📋 Information
 | Tool | Description |
