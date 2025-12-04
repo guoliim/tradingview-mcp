@@ -285,23 +285,24 @@ mcp = FastMCP(
 def tv_auth_status() -> dict:
     """Check TradingView authentication status.
 
-    Uses rookiepy to detect if you're logged in to TradingView in your browser.
-    When authenticated, screener data will be real-time instead of 15-min delayed.
+    Detects if you're logged into TradingView in your browser.
+    When logged in, real-time data is available.
+    Without login, data has 15-minute delay.
 
     Returns:
-        Authentication status including browser used and login state.
+        Authentication status showing which browser session was detected.
     """
     return get_auth_status()
 
 
 @mcp.tool()
-def tv_auth_refresh(browser: str = "chrome") -> dict:
+def tv_auth_refresh(browser: str = "auto") -> dict:
     """Refresh TradingView authentication from browser.
 
-    Re-reads cookies from your browser. Use after logging in to TradingView.
+    Re-reads cookies from browser after logging into TradingView.
 
     Args:
-        browser: Browser to use (chrome, firefox, edge, brave, opera, chromium)
+        browser: Browser to use (chrome, edge, firefox, brave, chromium, opera, or "auto" to try all)
 
     Returns:
         Updated authentication status.
